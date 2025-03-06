@@ -173,3 +173,6 @@ output
 checkpoint*
 tmp*
 results
+cnndm
+cnndm_train_20
+data
