@@ -176,3 +176,6 @@ results
 cnndm
 cnndm_train_20
 data
+prediction
+output
+custom_model_checkpoint

@@ -2,21 +2,21 @@ from datasets import load_dataset, DatasetDict
 import torch
 from transformers import DataCollatorForSeq2Seq
 import numpy as np
-import evaluate
 import datetime
 from transformers import AutoTokenizer
 from transformers import AutoModelForSeq2SeqLM
 from transformers import Seq2SeqTrainingArguments, Seq2SeqTrainer
 
 dataset = load_dataset("abisee/cnn_dailymail","3.0.0")
-train_set = dataset["train"].select(range(1000))
-val_set = dataset["validation"].select(range(100))
-test_set = dataset["test"].select(range(100))
-dataset = DatasetDict({
-    "train": train_set,
-    "validation": val_set,
-    "test": test_set
-})
+test_set = dataset["test"]
+# train_set = dataset["train"].select(range(1000))
+# val_set = dataset["validation"].select(range(100))
+# test_set = dataset["test"].select(range(100))
+# dataset = DatasetDict({
+#     "train": train_set,
+#     "validation": val_set,
+#     "test": test_set
+# })
 
 model_path = "google-t5/t5-base"
 tokenizer = AutoTokenizer.from_pretrained(model_path)
@@ -36,7 +36,7 @@ tokenized_datasets = dataset.map(tokenize_function, batched=True)
     
 
 
-save_path = "checkpoint-750"
+save_path = "checkpoint-143557"
 # Prediction
 model = AutoModelForSeq2SeqLM.from_pretrained(save_path)
 training_args = Seq2SeqTrainingArguments(
@@ -56,12 +56,12 @@ summaries = tokenizer.batch_decode(
 print(len(summaries))
 print(len(test_set["highlights"]))
 
-with open("summaries_small.txt.src", "w") as f:
+with open("prediction/t5/summaries_small.txt.src", "w") as f:
     for content in test_set["article"]:
         content = content.replace("\n"," ")
         f.write(content + "\n")
 
-with open("summaries_small_gold.txt.tgt", "w") as f:
+with open("prediction/t5/summaries_small_gold.txt.tgt", "w") as f:
     i=1
     for content in test_set["highlights"]:
         content = content.replace("\n"," ")
@@ -69,8 +69,8 @@ with open("summaries_small_gold.txt.tgt", "w") as f:
         i+=1
         f.write(content + "\n")
 
-with open("summaries_small_pred.txt.tgt", "w", encoding="utf-8") as f:
+with open("prediction/t5/summaries_small_pred.txt.tgt", "w", encoding="utf-8") as f:
     for summary in summaries:
         f.write(summary + "\n")  # separate summaries with a blank line
 
-print("Summaries saved to summaries.txt")
+print("Summaries saved to prediction/t5/summaries.txt")

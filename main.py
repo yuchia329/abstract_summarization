@@ -6,6 +6,7 @@ import datetime
 from transformers import AutoTokenizer
 from transformers import AutoModelForSeq2SeqLM
 from transformers import Seq2SeqTrainingArguments, Seq2SeqTrainer
+from model_custom import CustomTokenizer
 
 
 dataset = load_dataset("abisee/cnn_dailymail","3.0.0")
@@ -18,15 +19,15 @@ dataset = load_dataset("abisee/cnn_dailymail","3.0.0")
 #     "test": test_set
 # })
 
-model_path = "google-t5/t5-base"
-tokenizer = AutoTokenizer.from_pretrained(model_path)
+tokenizer_path = "google-t5/t5-base"
+model_path = "output/checkpoint_2025-03-06--16:40"
+# tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
+tokenizer = CustomTokenizer()
 
 
 def tokenize_function(examples):
-    # breakpoint()
-    tokenized_outputs = tokenizer(examples["article"], padding="max_length", truncation=True, max_length=1000)
+    tokenized_outputs = tokenizer(examples["article"], padding="max_length", truncation=True, max_length=750)
     outputs = tokenizer(examples["highlights"], padding="max_length", truncation=True)
-    # breakpoint()
     return { "input_ids": tokenized_outputs["input_ids"], "attention_mask": tokenized_outputs["attention_mask"], "labels": outputs["input_ids"] }
     
     
@@ -38,23 +39,35 @@ small_train_dataset = tokenized_datasets["train"].shuffle(seed=42)
 small_eval_dataset = tokenized_datasets["validation"].shuffle(seed=42)
 
 
+config = AutoModelForSeq2SeqLM.from_config(tokenizer_path)
 model = AutoModelForSeq2SeqLM.from_pretrained(
-    model_path, torch_dtype=torch.bfloat16, 
+    config=config,
+    # tokenizer_path, 
+    torch_dtype=torch.bfloat16, 
     # attn_implementation='flash_attention_1'
 )
 
 date = datetime.datetime.now().strftime("%Y-%m-%d--%H:%M")
+# date = '2025-03-06--16:40'
 save_path = f"output/checkpoint_{date}"
 training_args = Seq2SeqTrainingArguments(
     output_dir=save_path,
     eval_strategy="epoch",
-    num_train_epochs=3,
-    per_device_train_batch_size=3,
+    num_train_epochs=1,
+    per_device_train_batch_size=4,
     bf16=True,
     predict_with_generate=True,
-    # gradient_checkpointing=True
+    resume_from_checkpoint=True,
+    gradient_checkpointing=True
     # deepspeed='ds_config.json'
 )
+
+# class CustomTrainer(Seq2SeqTrainer):
+#     def training_step(self, model, inputs, num_items_in_batch=None):
+#         torch.cuda.empty_cache()  # Clears cache before the step
+#         loss = super().training_step(model, inputs, num_items_in_batch)  # Call original training step
+#         torch.cuda.empty_cache()  # Clears cache after the step
+#         return loss
 
 trainer = Seq2SeqTrainer(
     model=model,
@@ -64,5 +77,5 @@ trainer = Seq2SeqTrainer(
     data_collator= DataCollatorForSeq2Seq(tokenizer),
     # compute_metrics=compute_metrics,
 )
-trainer.train()
+trainer.train(resume_from_checkpoint = True)
 date = datetime.datetime.now().strftime("%Y-%m-%d--%H:%M")
